@@ -38,7 +38,7 @@ const rebuildStackAnimatedValues = (props) => {
 class Swiper extends Component {
   constructor (props) {
     super(props)
-
+    this._mounted = true
     this.state = {
       ...calculateCardIndexes(props.cardIndex, props.cards),
       pan: new Animated.ValueXY(),
@@ -53,8 +53,10 @@ class Swiper extends Component {
       isSwipingBack: false,
       ...rebuildStackAnimatedValues(props)
     }
+    this.registerStyleAndAnimation()
+  }
 
-    this._mounted = true
+  registerStyleAndAnimation = () => {
     this._animatedValueX = 0
     this._animatedValueY = 0
 
@@ -63,6 +65,15 @@ class Swiper extends Component {
 
     this.initializeCardStyle()
     this.initializePanResponder()
+  }
+
+  unregisterStyleAndAnimation = () => {
+    this.state.pan.x.removeAllListeners()
+    this.state.pan.y.removeAllListeners()
+
+    Dimensions.removeEventListener('change', this.onDimensionsChange)
+
+    this._panResponder = null;
   }
 
   shouldComponentUpdate = (nextProps, nextState) => {
@@ -81,11 +92,31 @@ class Swiper extends Component {
     return propsChanged || stateChanged
   }
 
+  componentWillReceiveProps(nextProps) {
+    const { props } = this
+    if (!isEqual(props.cards, nextProps.cards)) {
+      this.unregisterStyleAndAnimation()
+      this.setState(
+        {
+          ...calculateCardIndexes(nextProps.cardIndex, nextProps.cards),
+          cards: nextProps.cards,
+          swipedAllCards: false,
+          panResponderLocked: false,
+          labelType: LABEL_TYPES.NONE,
+          slideGesture: false,
+          swipeBackXYPositions: [],
+          isSwipingBack: false,
+          ...rebuildStackAnimatedValues(nextProps)
+        },
+        this.resetPanAndScale
+      )
+      this.registerStyleAndAnimation()
+    }
+  }
+
   componentWillUnmount = () => {
     this._mounted = false
-    this.state.pan.x.removeAllListeners()
-    this.state.pan.y.removeAllListeners()
-    Dimensions.removeEventListener('change', this.onDimensionsChange)
+    this.unregisterStyleAndAnimation()
   }
 
   getCardStyle = () => {
